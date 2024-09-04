@@ -7,18 +7,29 @@ class reveive_hk_data : public rclcpp::Node
 {
 private:
   /* data */
+  rclcpp::TimerBase::SharedPtr timer_main;
+  rclcpp::Publisher<fz80_interfaces::msg::VehicleAttitude>::SharedPtr hk_data_publisher;
+
 public:
   reveive_hk_data(std::string name);
   ~reveive_hk_data();
+
+  void timer_main_callback();
 };
 
 reveive_hk_data::reveive_hk_data(std::string name) : Node(name)
 {
   RCLCPP_INFO(this->get_logger(), "Node %s is started.",name.c_str());
+  timer_main = this->create_wall_timer(std::chrono::milliseconds(100), std::bind(&reveive_hk_data::timer_main_callback, this));
 }
 
 reveive_hk_data::~reveive_hk_data()
 {
+}
+
+void reveive_hk_data::timer_main_callback()
+{
+
 }
 
 
