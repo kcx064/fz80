@@ -86,6 +86,8 @@ class DDPG:
         self.target_actor = PolicyNet(n_states, n_hiddens, n_actions, action_bound).to(device)
         # 价值网络--目标
         self.target_critic = QValueNet(n_states, n_hiddens, n_actions).to(device)
+
+        self.load_model("./test")
         # 初始化价值网络的参数，两个价值网络的参数相同
         self.target_critic.load_state_dict(self.critic.state_dict())
         # 初始化策略网络的参数，两个策略网络的参数相同
@@ -108,7 +110,8 @@ class DDPG:
         # 维度变换 list[n_states]-->tensor[1,n_states]-->gpu
         state = torch.tensor(state, dtype=torch.float).view(1,-1).to(self.device)
         # 策略网络计算出当前状态下的动作价值 [1,n_states]-->[1,1]-->int
-        action = self.actor(state).item()
+        # action = self.actor(state).item()
+        action = self.actor(state).tolist()
         # 给动作添加噪声，增加搜索
         action = action + self.sigma * np.random.randn(self.n_actions)
         return action
@@ -161,3 +164,16 @@ class DDPG:
         self.soft_update(self.actor, self.target_actor)
         # 软更新价值网络的参数
         self.soft_update(self.critic, self.target_critic)
+
+    # 保存训练后的模型
+    def save_model(self, filename):
+        torch.save(self.actor.state_dict(), filename + '_actor.pth')
+        torch.save(self.critic.state_dict(), filename + '_critic.pth')
+        torch.save(self.target_actor.state_dict(), filename + '_target_actor.pth')
+        torch.save(self.target_critic.state_dict(), filename + '_target_critic.pth')
+
+    def load_model(self, filename):
+        self.actor.load_state_dict(torch.load(filename + '_actor.pth', weights_only=True))
+        self.critic.load_state_dict(torch.load(filename + '_critic.pth', weights_only=True))
+        self.target_actor.load_state_dict(torch.load(filename + '_target_actor.pth', weights_only=True))
+        self.target_critic.load_state_dict(torch.load(filename + '_target_critic.pth', weights_only=True))

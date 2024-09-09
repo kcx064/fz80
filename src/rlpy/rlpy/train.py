@@ -22,9 +22,9 @@ class NodeTrain(Node):
         self.replay_buffer = ReplayBuffer(capacity=ddpg_param.buffer_size)
 
         # 模型实例化
-        self.agent = DDPG(n_states = 2,  # 状态数
+        self.agent = DDPG(n_states = 6,  # 状态数
                     n_hiddens = ddpg_param.n_hiddens,  # 隐含层数
-                    n_actions = 1,  # 动作数
+                    n_actions = 2,  # 动作数
                     action_bound = 1.0,  # 动作最大值
                     sigma = ddpg_param.sigma,  # 高斯噪声
                     actor_lr = ddpg_param.actor_lr,  # 策略网络学习率
@@ -38,29 +38,38 @@ class NodeTrain(Node):
         self.mean_return_list = []  # 记录每个回合的return均值
 
         self.episode_return = 0 # 累计每条链上的reward
-        self.state = [0, 0]  # 初始时的状态
-        self.next_state = [0, 0]
-        self.action = 0  # 初始动作
+        self.state = [0, 0, 0, 0, 0, 0]  # 初始时的状态
+        self.next_state = [0, 0, 0, 0, 0, 0]
+        self.action = [0,0]  # 初始动作
         self.done = False  # 回合结束标记
+        self.rl_times = 0
 
     def callback(self):
-        self.get_logger().info("hello, world!")
-
+        # self.get_logger().info("hello, world!")
+        # TODO: 通过话题获取当前状态
+        
         # 获取当前状态对应的动作
-        self.action = agent.take_action(self.state)
-        # 环境更新
+        self.action = self.agent.take_action(self.state)
+        self.get_logger().info("action: %s" % self.action)
+
+        # TODO：环境更新，将action量输入真实系统，并等待返回的结果，即@self.next_state
         # self.next_state, self.reward, self.done, _, _ = env.step(self.action)
+        self.rl_times += 1
+
+        # 计算reward
+        self.reward = self.next_state[4]^2 + self.next_state[5]^2
+
         # 更新经验回放池
-        replay_buffer.add(state, action, reward, self.next_state, self.done)
+        self.replay_buffer.add(self.state, self.action, self.reward, self.next_state, self.done)
         # 状态更新
-        state = next_state
-        # 累计每一步的reward
-        episode_return += reward
+        self.state = self.next_state
+        # 累计每一步的 reward
+        self.episode_return += self.reward
  
         # 如果经验池超过容量，开始训练
-        if replay_buffer.size() > args.min_size:
+        if self.replay_buffer.size() > ddpg_param.min_size:
             # 经验池随机采样batch_size组
-            s, a, r, ns, d = replay_buffer.sample(args.batch_size)
+            s, a, r, ns, d = self.replay_buffer.sample(ddpg_param.batch_size)
             # 构造数据集
             transition_dict = {
                 'states': s,
@@ -70,7 +79,10 @@ class NodeTrain(Node):
                 'dones': d,
             }
             # 模型训练
-            agent.update(transition_dict)
+            self.agent.update(transition_dict)
+
+        if self.rl_times == 10:
+            self.agent.save_model("./test")
 
 
 
