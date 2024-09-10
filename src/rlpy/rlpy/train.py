@@ -9,7 +9,7 @@ import torch
 from .submodules.parsers import ddpg_param
 from .submodules.DDPGmodel import ReplayBuffer, DDPG
 
-from fz80_interfaces.msg import VehicleAttitude
+from fz80_interfaces.msg import VehicleAttitude, VehicleCmd
 
 
 class NodeTrain(Node):
@@ -23,6 +23,8 @@ class NodeTrain(Node):
         # 创建订阅者：订阅HK信息，话题类型VehicleAttitude，指定名称"hk_state"
         self.state_sub = self.create_subscription(VehicleAttitude, "hk_state", self.state_cb, 10)
 
+        self.vehicle_cmd_pub = self.create_publisher(VehicleCmd, "hk_action", 10) 
+
         # 经验回放池实例化
         self.replay_buffer = ReplayBuffer(capacity=ddpg_param.buffer_size)
 
@@ -30,7 +32,7 @@ class NodeTrain(Node):
         self.agent = DDPG(n_states = 6,  # 状态数
                     n_hiddens = ddpg_param.n_hiddens,  # 隐含层数
                     n_actions = 2,  # 动作数
-                    action_bound = 1.0,  # 动作最大值
+                    action_bound = 30.0,  # 动作最大值
                     sigma = ddpg_param.sigma,  # 高斯噪声
                     actor_lr = ddpg_param.actor_lr,  # 策略网络学习率
                     critic_lr = ddpg_param.critic_lr,  # 价值网络学习率
@@ -58,11 +60,20 @@ class NodeTrain(Node):
         self.get_logger().info("action: %s" % self.action)
 
         # TODO：环境更新，将action量输入真实系统，并等待返回的结果，即@self.next_state
+        msg_cmd = VehicleCmd()
+        msg_cmd.header.stamp = self.get_clock().now().to_msg()
+        msg_cmd.header.frame_id = "cmd"
+        pitch_c = self.action[0][0]
+        yaw_c = self.action[0][1]
+        msg_cmd.pitch_cmd = int(pitch_c*100)
+        msg_cmd.yaw_cmd = int(yaw_c*100)
+        self.vehicle_cmd_pub.publish(msg_cmd)
         # self.next_state, self.reward, self.done, _, _ = env.step(self.action)
         self.rl_times += 1
 
         # 计算reward
         self.reward = self.next_state[4]^2 + self.next_state[5]^2
+        print("reward ",self.reward)
 
         # 更新经验回放池
         self.replay_buffer.add(self.state, self.action, self.reward, self.next_state, self.done)
@@ -90,12 +101,8 @@ class NodeTrain(Node):
             self.agent.save_model("./test")
 
     def state_cb(self, msg):
-        self.frame_pitch = msg.frame_pitch
-        self.frame_yaw = msg.frame_yaw
-        self.pitch = msg.pitch
-        self.yaw = msg.yaw
-        self.md_x = msg.md_x
-        self.md_y = msg.md_y
+        self.get_logger().info("state: %s" % msg)
+        self.next_state = [msg.pitch, msg.yaw, msg.frame_pitch, msg.frame_yaw, msg.md_x, msg.md_y]
 
 
 

@@ -22,6 +22,7 @@ find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/VehicleAttitude.msg"
+  "msg/VehicleCmd.msg"
   DEPENDENCIES std_msgs
   # DEPENDENCIES geometry_msgs
 )
