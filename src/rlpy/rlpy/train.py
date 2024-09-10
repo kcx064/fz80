@@ -9,14 +9,19 @@ import torch
 from .submodules.parsers import ddpg_param
 from .submodules.DDPGmodel import ReplayBuffer, DDPG
 
+from fz80_interfaces.msg import VehicleAttitude
+
 
 class NodeTrain(Node):
     def __init__(self, name):
         super().__init__(name)  # 初始化节点名称
-        self.get_logger().info("大家好，我是%s!" % name)
+        self.get_logger().info("Node: %s is running!" % name)
 
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
         self.timer = self.create_timer(1.0, self.callback)
+
+        # 创建订阅者：订阅HK信息，话题类型VehicleAttitude，指定名称"hk_state"
+        self.state_sub = self.create_subscription(VehicleAttitude, "hk_state", self.state_cb, 10)
 
         # 经验回放池实例化
         self.replay_buffer = ReplayBuffer(capacity=ddpg_param.buffer_size)
@@ -83,6 +88,15 @@ class NodeTrain(Node):
 
         if self.rl_times == 10:
             self.agent.save_model("./test")
+
+    def state_cb(self, msg):
+        self.frame_pitch = msg.frame_pitch
+        self.frame_yaw = msg.frame_yaw
+        self.pitch = msg.pitch
+        self.yaw = msg.yaw
+        self.md_x = msg.md_x
+        self.md_y = msg.md_y
+
 
 
 

@@ -87,7 +87,13 @@ class DDPG:
         # 价值网络--目标
         self.target_critic = QValueNet(n_states, n_hiddens, n_actions).to(device)
 
-        self.load_model("./test")
+        try:
+            self.load_model("./test")
+        except Exception as e:
+            print(f"发生了一个错误: {e}")
+        else:
+            print("模型加载成功")
+
         # 初始化价值网络的参数，两个价值网络的参数相同
         self.target_critic.load_state_dict(self.critic.state_dict())
         # 初始化策略网络的参数，两个策略网络的参数相同
