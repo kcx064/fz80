@@ -72,7 +72,7 @@ class NodeTrain(Node):
         self.rl_times += 1
 
         # 计算reward
-        self.reward = 1000 - self.next_state[4]*self.next_state[4] - self.next_state[5]*self.next_state[5]
+        self.reward = 10000 - 100*( (self.next_state[4]+self.next_state[2] - -0.1)**2 + (self.next_state[5] + self.next_state[3] - 0.56)**2 )
         print("reward ",self.reward)
 
         # 更新经验回放池
@@ -97,12 +97,13 @@ class NodeTrain(Node):
             # 模型训练
             self.agent.update(transition_dict)
 
-        if self.rl_times == 10:
+        if self.rl_times % 100 == 1:
             self.agent.save_model("./test")
+            self.get_logger().info("saved model!")
 
     def state_cb(self, msg):
         # self.get_logger().info("state: %s" % msg)
-        self.next_state = [msg.pitch, msg.yaw, msg.frame_pitch, msg.frame_yaw, msg.md_x, msg.md_y]
+        self.next_state = [msg.pitch, msg.yaw, msg.frame_yaw, msg.frame_pitch, msg.md_x, msg.md_y]
 
 
 
