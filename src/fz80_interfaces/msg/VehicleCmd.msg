@@ -1,6 +1,6 @@
 std_msgs/Header  header
 
-int16 pitch_cmd
-int16 yaw_cmd
+float32 pitch_cmd
+float32 yaw_cmd
 
 

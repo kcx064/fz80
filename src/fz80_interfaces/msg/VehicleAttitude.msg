@@ -1,14 +1,14 @@
 std_msgs/Header  header
 
 uint8 ctrl_mode
-int16 yaw
-int16 pitch
-int16 roll
+float32 yaw
+float32 pitch
+float32 roll
 
-int16 frame_roll
-int16 frame_pitch
-int16 frame_yaw
+float32 frame_roll
+float32 frame_pitch
+float32 frame_yaw
 
-int16 md_x
-int16 md_y
+float32 md_x
+float32 md_y
 

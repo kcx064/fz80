@@ -32,7 +32,7 @@ class NodeTrain(Node):
         self.agent = DDPG(n_states = 6,  # 状态数
                     n_hiddens = ddpg_param.n_hiddens,  # 隐含层数
                     n_actions = 2,  # 动作数
-                    action_bound = 30.0,  # 动作最大值
+                    action_bound = 20.0,  # 动作最大值
                     sigma = ddpg_param.sigma,  # 高斯噪声
                     actor_lr = ddpg_param.actor_lr,  # 策略网络学习率
                     critic_lr = ddpg_param.critic_lr,  # 价值网络学习率
@@ -65,14 +65,14 @@ class NodeTrain(Node):
         msg_cmd.header.frame_id = "cmd"
         pitch_c = self.action[0][0]
         yaw_c = self.action[0][1]
-        msg_cmd.pitch_cmd = int(pitch_c*100)
-        msg_cmd.yaw_cmd = int(yaw_c*100)
+        msg_cmd.pitch_cmd = float(pitch_c)
+        msg_cmd.yaw_cmd = float(yaw_c)
         self.vehicle_cmd_pub.publish(msg_cmd)
         # self.next_state, self.reward, self.done, _, _ = env.step(self.action)
         self.rl_times += 1
 
         # 计算reward
-        self.reward = self.next_state[4]^2 + self.next_state[5]^2
+        self.reward = 1000 - self.next_state[4]*self.next_state[4] - self.next_state[5]*self.next_state[5]
         print("reward ",self.reward)
 
         # 更新经验回放池
@@ -101,7 +101,7 @@ class NodeTrain(Node):
             self.agent.save_model("./test")
 
     def state_cb(self, msg):
-        self.get_logger().info("state: %s" % msg)
+        # self.get_logger().info("state: %s" % msg)
         self.next_state = [msg.pitch, msg.yaw, msg.frame_pitch, msg.frame_yaw, msg.md_x, msg.md_y]
 
 
