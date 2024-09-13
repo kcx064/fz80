@@ -18,7 +18,7 @@ class NodeTrain(Node):
         self.get_logger().info("Node: %s is running!" % name)
 
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-        self.timer = self.create_timer(5.0, self.callback)
+        self.timer = self.create_timer(2.0, self.callback)
 
         # 创建订阅者：订阅HK信息，话题类型VehicleAttitude，指定名称"hk_state"
         self.state_sub = self.create_subscription(VehicleAttitude, "hk_state", self.state_cb, 10)
