@@ -18,7 +18,7 @@ class NodeTrain(Node):
         self.get_logger().info("Node: %s is running!" % name)
 
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-        self.timer = self.create_timer(1.0, self.callback)
+        self.timer = self.create_timer(5.0, self.callback)
 
         # 创建订阅者：订阅HK信息，话题类型VehicleAttitude，指定名称"hk_state"
         self.state_sub = self.create_subscription(VehicleAttitude, "hk_state", self.state_cb, 10)
@@ -53,13 +53,18 @@ class NodeTrain(Node):
 
     def callback(self):
         # self.get_logger().info("hello, world!")
-        # TODO: 通过话题获取当前状态
+        # 计算reward
+        target = ( (self.next_state[4]+self.next_state[2] - -0.1)**2 + (self.next_state[5] + self.next_state[3] - 0.56)**2 )
+        self.reward = 10000 - 1*target
+        print("reward ",self.reward, "target", target)
+        # 获取当前状态
+        self.state = self.next_state
         
         # 获取当前状态对应的动作
         self.action = self.agent.take_action(self.state)
         self.get_logger().info("action: %s" % self.action)
 
-        # TODO：环境更新，将action量输入真实系统，并等待返回的结果，即@self.next_state
+        # 环境更新，将action量输入真实系统，并等待返回的结果，即@self.next_state
         msg_cmd = VehicleCmd()
         msg_cmd.header.stamp = self.get_clock().now().to_msg()
         msg_cmd.header.frame_id = "cmd"
@@ -71,14 +76,8 @@ class NodeTrain(Node):
         # self.next_state, self.reward, self.done, _, _ = env.step(self.action)
         self.rl_times += 1
 
-        # 计算reward
-        self.reward = 10000 - 100*( (self.next_state[4]+self.next_state[2] - -0.1)**2 + (self.next_state[5] + self.next_state[3] - 0.56)**2 )
-        print("reward ",self.reward)
-
         # 更新经验回放池
         self.replay_buffer.add(self.state, self.action, self.reward, self.next_state, self.done)
-        # 状态更新
-        self.state = self.next_state
         # 累计每一步的 reward
         self.episode_return += self.reward
  
