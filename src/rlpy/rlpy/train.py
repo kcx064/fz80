@@ -18,7 +18,7 @@ class NodeTrain(Node):
         self.get_logger().info("Node: %s is running!" % name)
 
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-        self.timer = self.create_timer(2.0, self.callback)
+        self.timer = self.create_timer(0.02, self.callback)
 
         # 创建订阅者：订阅HK信息，话题类型VehicleAttitude，指定名称"hk_state"
         self.state_sub = self.create_subscription(VehicleAttitude, "hk_state", self.state_cb, 10)
@@ -56,13 +56,13 @@ class NodeTrain(Node):
         # 计算reward
         target = ( (self.next_state[4]+self.next_state[2] - -0.1)**2 + (self.next_state[5] + self.next_state[3] - 0.56)**2 )
         self.reward = 10000 - 1*target
-        print("reward ",self.reward, "target", target)
+        # self.get_logger().info("reward ",self.reward, "target", target)
         # 获取当前状态
         self.state = self.next_state
         
         # 获取当前状态对应的动作
         self.action = self.agent.take_action(self.state)
-        self.get_logger().info("action: %s" % self.action)
+        # self.get_logger().info("action: %s" % self.action)
 
         # 环境更新，将action量输入真实系统，并等待返回的结果，即@self.next_state
         msg_cmd = VehicleCmd()
@@ -95,8 +95,11 @@ class NodeTrain(Node):
             }
             # 模型训练
             self.agent.update(transition_dict)
+        else:
+            self.get_logger().info("replay buffer is not full yet")
+            
 
-        if self.rl_times % 100 == 1:
+        if self.rl_times % 1000 == 1:
             self.agent.save_model("./test")
             self.get_logger().info("saved model!")
 
