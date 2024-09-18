@@ -56,7 +56,8 @@ class NodeTrain(Node):
         # 计算reward
         target = ( (self.next_state[4]+self.next_state[2] - -0.1)**2 + (self.next_state[5] + self.next_state[3] - 0.56)**2 )
         self.reward = 10000 - 1*target
-        # self.get_logger().info("reward ",self.reward, "target", target)
+        self.get_logger().info("reward: %s" % self.reward)
+        
         # 获取当前状态
         self.state = self.next_state
         
@@ -96,7 +97,7 @@ class NodeTrain(Node):
             # 模型训练
             self.agent.update(transition_dict)
         else:
-            self.get_logger().info("replay buffer is not full yet")
+            self.get_logger().info("buffer is not full")
             
 
         if self.rl_times % 1000 == 1:

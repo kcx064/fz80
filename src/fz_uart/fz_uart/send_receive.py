@@ -29,7 +29,7 @@ class NodeSendReceive(Node):
         self.Getdata.initialize()
 
     def action_cb(self, msg):
-        self.get_logger().info("action received: %s" % msg)
+        self.get_logger().info("action received: pitch cmd: %s yaw cmd: %s" % (msg.pitch_cmd, msg.yaw_cmd))
         
         self.rollCmd = 0
         self.pitchCmd = float(msg.pitch_cmd)

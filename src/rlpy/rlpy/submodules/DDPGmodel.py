@@ -133,7 +133,7 @@ class DDPG:
     def update(self, transition_dict):
         # 从训练集中取出数据
         states = torch.tensor(transition_dict['states'], dtype=torch.float).to(self.device)  # [b,n_states]
-        actions = torch.tensor(transition_dict['actions'], dtype=torch.float).view(-1,1).to(self.device)  # [b,1]
+        actions = torch.tensor(transition_dict['actions'], dtype=torch.float).view(-1,2).to(self.device)  # [b,1]
         rewards = torch.tensor(transition_dict['rewards'], dtype=torch.float).view(-1,1).to(self.device)  # [b,1]
         next_states = torch.tensor(transition_dict['next_states'], dtype=torch.float).to(self.device)  # [b,next_states]
         dones = torch.tensor(transition_dict['dones'], dtype=torch.float).view(-1,1).to(self.device)  # [b,1]
