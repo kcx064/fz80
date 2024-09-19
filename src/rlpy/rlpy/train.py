@@ -21,18 +21,18 @@ class NodeTrain(Node):
         self.timer = self.create_timer(0.02, self.callback)
 
         # 创建订阅者：订阅HK信息，话题类型VehicleAttitude，指定名称"hk_state"
-        self.state_sub = self.create_subscription(VehicleAttitude, "hk_state", self.state_cb, 10)
+        self.state_sub = self.create_subscription(VehicleAttitude, "hk_state", self.state_cb, 3)
 
-        self.vehicle_cmd_pub = self.create_publisher(VehicleCmd, "hk_action", 10) 
+        self.vehicle_cmd_pub = self.create_publisher(VehicleCmd, "hk_action", 3) 
 
         # 经验回放池实例化
         self.replay_buffer = ReplayBuffer(capacity=ddpg_param.buffer_size)
 
         # 模型实例化
-        self.agent = DDPG(n_states = 6,  # 状态数
+        self.agent = DDPG(n_states = 2,  # 状态数
                     n_hiddens = ddpg_param.n_hiddens,  # 隐含层数
                     n_actions = 2,  # 动作数
-                    action_bound = 20.0,  # 动作最大值
+                    action_bound = 1.0,  # 动作最大值
                     sigma = ddpg_param.sigma,  # 高斯噪声
                     actor_lr = ddpg_param.actor_lr,  # 策略网络学习率
                     critic_lr = ddpg_param.critic_lr,  # 价值网络学习率
@@ -45,18 +45,32 @@ class NodeTrain(Node):
         self.mean_return_list = []  # 记录每个回合的return均值
 
         self.episode_return = 0 # 累计每条链上的reward
-        self.state = [0, 0, 0, 0, 0, 0]  # 初始时的状态
-        self.next_state = [0, 0, 0, 0, 0, 0]
+        self.state = [0, 0]  # 初始时的状态
+        self.next_state = [0, 0]
         self.action = [0,0]  # 初始动作
         self.done = False  # 回合结束标记
         self.rl_times = 0
+        self.actor_loss = 0
 
     def callback(self):
         # self.get_logger().info("hello, world!")
         # 计算reward
-        target = ( (self.next_state[4]+self.next_state[2] - -0.1)**2 + (self.next_state[5] + self.next_state[3] - 0.56)**2 )
-        self.reward = 10000 - 1*target
+        target = (self.next_state[0]*100 - -0.1)**4 + (self.next_state[1]*100 - 0.56)**4
+        target_old = (self.state[0]*100 - -0.1)**4 + (self.state[1]*100 - 0.56)**4
+        
+        if target < 1000:
+            self.done = True
+        else:
+            self.done = False
+        
+        
+        self.reward = (200 - 1*target)*0.001  + (target_old - target)*0.001
+        # self.get_logger().info("target_old - target: %s" % (target_old - target))
         self.get_logger().info("reward: %s" % self.reward)
+        self.get_logger().info("target: %s" % target)
+        # self.get_logger().info("actor_loss: %s" % self.actor_loss.detach().cpu().numpy())
+        # self.get_logger().info("yaw frame: %s" % (self.next_state[0]*100))
+        self.get_logger().info("pitch frame: %s" % (self.next_state[1]*100))
         
         # 获取当前状态
         self.state = self.next_state
@@ -69,8 +83,8 @@ class NodeTrain(Node):
         msg_cmd = VehicleCmd()
         msg_cmd.header.stamp = self.get_clock().now().to_msg()
         msg_cmd.header.frame_id = "cmd"
-        pitch_c = self.action[0][0]
-        yaw_c = self.action[0][1]
+        pitch_c = self.action[0][0]*10 + self.next_state[1]*100
+        yaw_c = self.action[0][1]*10 + self.next_state[0]*100
         msg_cmd.pitch_cmd = float(pitch_c)
         msg_cmd.yaw_cmd = float(yaw_c)
         self.vehicle_cmd_pub.publish(msg_cmd)
@@ -95,18 +109,22 @@ class NodeTrain(Node):
                 'dones': d,
             }
             # 模型训练
-            self.agent.update(transition_dict)
-        else:
-            self.get_logger().info("buffer is not full")
+            q_predict, self.actor_loss, critic_loss = self.agent.update(transition_dict)
+            
+            if self.rl_times % 500 == 1:
+                self.agent.save_model("./test")
+                self.get_logger().info("saved model!")
+            
+        # else:
+        #     self.get_logger().info("buffer is not full")
             
 
-        if self.rl_times % 1000 == 1:
-            self.agent.save_model("./test")
-            self.get_logger().info("saved model!")
+
 
     def state_cb(self, msg):
         # self.get_logger().info("state: %s" % msg)
-        self.next_state = [msg.pitch, msg.yaw, msg.frame_yaw, msg.frame_pitch, msg.md_x, msg.md_y]
+        # self.next_state = [msg.pitch/100, msg.yaw/100, msg.frame_yaw/100, msg.frame_pitch/100, msg.md_x/100, msg.md_y/100]
+        self.next_state = [msg.frame_yaw*0.01 + msg.md_x*0.01, msg.frame_pitch*0.01 + msg.md_y*0.01]
 
 
 

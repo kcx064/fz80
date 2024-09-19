@@ -19,9 +19,9 @@ class NodeSendReceive(Node):
         super().__init__(name)  # 初始化节点名称
         self.get_logger().info("Node: %s is running!" % name)
 
-        self.vehicle_cmd_sub = self.create_subscription(VehicleCmd, "hk_action", self.action_cb, 10)
+        self.vehicle_cmd_sub = self.create_subscription(VehicleCmd, "hk_action", self.action_cb, 3)
 
-        self.state_pub = self.create_publisher(VehicleAttitude, "hk_state", 10) 
+        self.state_pub = self.create_publisher(VehicleAttitude, "hk_state", 3) 
 
         self.timer = self.create_timer(0.01, self.timer_callback)
         
@@ -29,7 +29,8 @@ class NodeSendReceive(Node):
         self.Getdata.initialize()
 
     def action_cb(self, msg):
-        self.get_logger().info("action received: pitch cmd: %s yaw cmd: %s" % (msg.pitch_cmd, msg.yaw_cmd))
+        self.get_logger().info("pitch cmd: %s" % (msg.pitch_cmd))
+        self.get_logger().info("yaw cmd: %s" % (msg.yaw_cmd))
         
         self.rollCmd = 0
         self.pitchCmd = float(msg.pitch_cmd)

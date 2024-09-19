@@ -170,6 +170,8 @@ class DDPG:
         self.soft_update(self.actor, self.target_actor)
         # 软更新价值网络的参数
         self.soft_update(self.critic, self.target_critic)
+        
+        return q_values, actor_loss, critic_loss
 
     # 保存训练后的模型
     def save_model(self, filename):
