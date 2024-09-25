@@ -14,6 +14,8 @@ parser.add_argument('--buffer_size', type=int, default=1000, help='经验池容�
 parser.add_argument('--min_size', type=int, default=200, help='经验池超过200再训练')
 parser.add_argument('--batch_size', type=int, default=64, help='每次训练64组样本')
 parser.add_argument('--sigma', type=int, default=0.001, help='高斯噪声标准差')     #16:23修改为10
+parser.add_argument('--filename', type=str, default="./test3", help='文件名前缀')
+parser.add_argument('--train_mode', type=bool, default=False, help='是否进行训练')
 
 # 参数解析
 ddpg_param = parser.parse_args()

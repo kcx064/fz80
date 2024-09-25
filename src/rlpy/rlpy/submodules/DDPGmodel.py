@@ -76,7 +76,7 @@ class QValueNet(nn.Module):
  
 class DDPG:
     def __init__(self, n_states, n_hiddens, n_actions, action_bound,
-                 sigma, actor_lr, critic_lr, tau, gamma, device):
+                 sigma, actor_lr, critic_lr, tau, gamma, device, filename):
  
         # 策略网络--训练
         self.actor = PolicyNet(n_states, n_hiddens, n_actions, action_bound).to(device)
@@ -88,7 +88,7 @@ class DDPG:
         self.target_critic = QValueNet(n_states, n_hiddens, n_actions).to(device)
 
         try:
-            self.load_model("./test")
+            self.load_model(filename)
         except Exception as e:
             print(f"发生了一个错误: {e}")
         else:

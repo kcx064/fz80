@@ -18,7 +18,7 @@ class NodeTrain(Node):
         self.get_logger().info("Node: %s is running!" % name)
 
         self.device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-        self.timer = self.create_timer(0.02, self.callback)
+        self.timer = self.create_timer(0.1, self.callback)
 
         # 创建订阅者：订阅HK信息，话题类型VehicleAttitude，指定名称"hk_state"
         self.state_sub = self.create_subscription(VehicleAttitude, "hk_state", self.state_cb, 3)
@@ -38,7 +38,8 @@ class NodeTrain(Node):
                     critic_lr = ddpg_param.critic_lr,  # 价值网络学习率
                     tau = ddpg_param.tau,  # 软更新系数
                     gamma = ddpg_param.gamma,  # 折扣因子
-                    device = self.device
+                    device = self.device,
+                    filename = ddpg_param.filename # 模型保存名字前缀
                     )
         
         self.return_list = []  # 记录每个回合的return
@@ -51,26 +52,18 @@ class NodeTrain(Node):
         self.done = False  # 回合结束标记
         self.rl_times = 0
         self.actor_loss = 0
+        self.pitch_ctrl = 0
+        self.yaw_ctrl = 0
+        self.train_mode = ddpg_param.train_mode
 
     def callback(self):
-        # self.get_logger().info("hello, world!")
         # 计算reward
         target = (self.next_state[0]*100 - -0.1)**4 + (self.next_state[1]*100 - 0.56)**4
-        target_old = (self.state[0]*100 - -0.1)**4 + (self.state[1]*100 - 0.56)**4
-        
-        if target < 1000:
-            self.done = True
-        else:
-            self.done = False
-        
+        target_old = (self.state[0]*100 - -0.1)**4 + (self.state[1]*100 - 0.56)**4        
         
         self.reward = (200 - 1*target)*0.001  + (target_old - target)*0.001
         # self.get_logger().info("target_old - target: %s" % (target_old - target))
-        self.get_logger().info("reward: %s" % self.reward)
-        self.get_logger().info("target: %s" % target)
-        # self.get_logger().info("actor_loss: %s" % self.actor_loss.detach().cpu().numpy())
-        # self.get_logger().info("yaw frame: %s" % (self.next_state[0]*100))
-        self.get_logger().info("pitch frame: %s" % (self.next_state[1]*100))
+        # self.get_logger().info("reward: %s" % self.reward)
         
         # 获取当前状态
         self.state = self.next_state
@@ -78,15 +71,18 @@ class NodeTrain(Node):
         # 获取当前状态对应的动作
         self.action = self.agent.take_action(self.state)
         # self.get_logger().info("action: %s" % self.action)
+        # self.get_logger().info("state: %s" % self.state)
 
         # 环境更新，将action量输入真实系统，并等待返回的结果，即@self.next_state
         msg_cmd = VehicleCmd()
         msg_cmd.header.stamp = self.get_clock().now().to_msg()
         msg_cmd.header.frame_id = "cmd"
-        pitch_c = self.action[0][0]*10 + self.next_state[1]*100
-        yaw_c = self.action[0][1]*10 + self.next_state[0]*100
-        msg_cmd.pitch_cmd = float(pitch_c)
-        msg_cmd.yaw_cmd = float(yaw_c)
+        # 改为累加 self.action[0][0]对应pitch_ctrl self.action[0][1]对应yaw_ctrl
+        self.pitch_ctrl += self.action[0][0]
+        self.yaw_ctrl += self.action[0][1]
+        msg_cmd.pitch_cmd = float(self.pitch_ctrl)
+        msg_cmd.yaw_cmd = float(self.yaw_ctrl)
+        # 发布控制消息
         self.vehicle_cmd_pub.publish(msg_cmd)
         # self.next_state, self.reward, self.done, _, _ = env.step(self.action)
         self.rl_times += 1
@@ -97,7 +93,7 @@ class NodeTrain(Node):
         self.episode_return += self.reward
  
         # 如果经验池超过容量，开始训练
-        if self.replay_buffer.size() > ddpg_param.min_size:
+        if (self.replay_buffer.size() > ddpg_param.min_size) and (self.train_mode):
             # 经验池随机采样batch_size组
             s, a, r, ns, d = self.replay_buffer.sample(ddpg_param.batch_size)
             # 构造数据集
@@ -112,7 +108,7 @@ class NodeTrain(Node):
             q_predict, self.actor_loss, critic_loss = self.agent.update(transition_dict)
             
             if self.rl_times % 500 == 1:
-                self.agent.save_model("./test")
+                self.agent.save_model(ddpg_param.filename)
                 self.get_logger().info("saved model!")
             
         # else:
@@ -124,7 +120,7 @@ class NodeTrain(Node):
     def state_cb(self, msg):
         # self.get_logger().info("state: %s" % msg)
         # self.next_state = [msg.pitch/100, msg.yaw/100, msg.frame_yaw/100, msg.frame_pitch/100, msg.md_x/100, msg.md_y/100]
-        self.next_state = [msg.frame_yaw*0.01 + msg.md_x*0.01, msg.frame_pitch*0.01 + msg.md_y*0.01]
+        self.next_state = [msg.frame_pitch + msg.md_y, msg.frame_yaw + msg.md_x]
 
 
 
